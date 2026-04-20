@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCartStore } from "@/store/cart";
 
@@ -29,6 +29,14 @@ const EMPTY_SHIPPING: ShippingData = {
 };
 
 export default function CheckoutPage() {
+  return (
+    <Suspense>
+      <CheckoutContent />
+    </Suspense>
+  );
+}
+
+function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const promoCode = searchParams.get("code");

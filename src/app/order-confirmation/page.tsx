@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCartStore } from "@/store/cart";
 
 export default function OrderConfirmationPage() {
+  return (
+    <Suspense>
+      <OrderConfirmationContent />
+    </Suspense>
+  );
+}
+
+function OrderConfirmationContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const clearCart = useCartStore((s) => s.clearCart);
