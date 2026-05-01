@@ -14,8 +14,9 @@ const config: Config = {
         muted: "var(--muted)",
       },
       fontFamily: {
-        serif: ["var(--font-cormorant)", "Georgia", "serif"],
-        sans: ["var(--font-inter)", "sans-serif"],
+        sans: ["var(--font-sans)", "DM Sans", "system-ui", "sans-serif"],
+        serif: ["var(--font-serif)", "Abril Fatface", "Georgia", "serif"],
+        script: ["var(--font-script)", "Pacifico", "cursive"],
       },
       keyframes: {
         marquee: {

@@ -2,6 +2,18 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Admin route guard — password cookie check
+  if (pathname.startsWith("/admin") && pathname !== "/admin-login") {
+    const token = request.cookies.get("admin_token")?.value;
+    if (token !== process.env.ADMIN_SECRET) {
+      const loginUrl = new URL("/admin-login", request.url);
+      loginUrl.searchParams.set("from", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -26,22 +38,7 @@ export async function proxy(request: NextRequest) {
   );
 
   // Refresh session — required for Server Components to read auth state
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const isAdminRoute = request.nextUrl.pathname.startsWith("/admin");
-
-  if (isAdminRoute) {
-    if (!user) {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
-
-    const role = user.user_metadata?.role;
-    if (role !== "admin") {
-      return NextResponse.redirect(new URL("/", request.url));
-    }
-  }
+  await supabase.auth.getUser();
 
   return supabaseResponse;
 }

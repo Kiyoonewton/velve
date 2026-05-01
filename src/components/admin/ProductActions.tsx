@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 
 export default function ProductActions({ id }: { id: string }) {
   const [confirming, setConfirming] = useState(false);
@@ -11,8 +10,7 @@ export default function ProductActions({ id }: { id: string }) {
 
   async function handleDelete() {
     setLoading(true);
-    const supabase = createClient();
-    await supabase.from("products").delete().eq("id", id);
+    await fetch(`/admin/products/${id}/delete`, { method: "DELETE" });
     router.refresh();
   }
 

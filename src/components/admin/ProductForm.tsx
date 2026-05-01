@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import ImageUploader from "@/components/admin/ImageUploader";
 
 interface ProductFormProps {
   product?: {
@@ -44,7 +44,7 @@ export default function ProductForm({ product }: ProductFormProps) {
     stock: product?.stock?.toString() ?? "0",
     colours: product?.colours?.join(", ") ?? "",
     tags: product?.tags?.join(", ") ?? "",
-    images: product?.images?.join("\n") ?? "",
+    images: product?.images ?? [],
     is_published: product?.is_published ?? false,
     is_featured: product?.is_featured ?? false,
     weight_grams: product?.weight_grams?.toString() ?? "",
@@ -54,7 +54,7 @@ export default function ProductForm({ product }: ProductFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  function set(key: string, value: string | boolean) {
+  function set(key: string, value: string | boolean | string[]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
@@ -86,10 +86,7 @@ export default function ProductForm({ product }: ProductFormProps) {
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean),
-      images: form.images
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean),
+      images: form.images,
       is_published: form.is_published,
       is_featured: form.is_featured,
       weight_grams: form.weight_grams ? parseInt(form.weight_grams) : null,
@@ -97,13 +94,15 @@ export default function ProductForm({ product }: ProductFormProps) {
       meta_desc: form.meta_desc || null,
     };
 
-    const supabase = createClient();
-    const { error: sbError } = isEdit
-      ? await supabase.from("products").update(payload).eq("id", product!.id)
-      : await supabase.from("products").insert(payload);
+    const res = await fetch("/admin/products/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(isEdit ? { id: product!.id, ...payload } : payload),
+    });
+    const json = await res.json();
 
-    if (sbError) {
-      setError(sbError.message);
+    if (!res.ok) {
+      setError(json.error ?? "Something went wrong");
       setSaving(false);
       return;
     }
@@ -266,21 +265,10 @@ export default function ProductForm({ product }: ProductFormProps) {
         <h2 className="text-[12px] tracking-[0.1em] uppercase text-[var(--muted)] mb-4">
           Images
         </h2>
-        <div className={fieldClass}>
-          <label className={labelClass}>Image URLs</label>
-          <textarea
-            value={form.images}
-            onChange={(e) => set("images", e.target.value)}
-            rows={4}
-            className={`${inputClass} h-auto py-2.5 resize-none font-mono text-[12px]`}
-            placeholder={
-              "https://res.cloudinary.com/…/product-1.jpg\nhttps://res.cloudinary.com/…/product-1-alt.jpg"
-            }
-          />
-          <p className="text-[11px] text-[var(--muted)] mt-1">
-            One Cloudinary URL per line. First image = hero, second = hover.
-          </p>
-        </div>
+        <ImageUploader
+          value={form.images}
+          onChange={(urls) => set("images", urls)}
+        />
       </div>
 
       {/* SEO */}
@@ -294,7 +282,7 @@ export default function ProductForm({ product }: ProductFormProps) {
             value={form.meta_title}
             onChange={(e) => set("meta_title", e.target.value)}
             className={inputClass}
-            placeholder={`${form.name || "Product name"} | Velve`}
+            placeholder={`${form.name || "Product name"} | Velve' Bags`}
           />
         </div>
         <div className={fieldClass}>

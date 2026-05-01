@@ -1,24 +1,32 @@
 import type { Metadata } from "next";
-import { Inter, Cormorant_Garamond } from "next/font/google";
+import { Pacifico, Abril_Fatface, DM_Sans } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import Navbar from "@/components/layouts/Navbar";
 import "./globals.css";
 
-const inter = Inter({
+// Logo + all display / heading text
+const pacifico = Pacifico({
   subsets: ["latin"],
-  variable: "--font-inter",
+  weight: ["400"],
+  variable: "--font-script",
 });
 
-const cormorant = Cormorant_Garamond({
+// Nav links + section headings (bold serif — matches "Home Catalog Contact" in reference)
+const abrilFatface = Abril_Fatface({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
-  style: ["normal", "italic"],
-  variable: "--font-cormorant",
+  weight: ["400"],
+  variable: "--font-serif",
+});
+
+// Body / UI text
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
 });
 
 export const metadata: Metadata = {
-  title: { default: "Velve", template: "%s | Velve" },
-  description: "Handcrafted jewellery and accessories.",
+  title: { default: "Velve' Bags", template: "%s | Velve' Bags" },
+  description: "Velve' Bags — handcrafted beaded bags and accessories.",
 };
 
 export default function RootLayout({
@@ -27,8 +35,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${cormorant.variable} font-sans`}>
+    <html lang="en" suppressHydrationWarning className={`${pacifico.variable} ${abrilFatface.variable} ${dmSans.variable}`}>
+      <body className="font-script">
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
           <Navbar />
           {children}

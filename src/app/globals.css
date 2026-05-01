@@ -2,8 +2,10 @@
 
 @theme {
   /* ── Fonts ── */
-  --font-sans: var(--font-inter), system-ui, sans-serif;
-  --font-serif: var(--font-cormorant), Georgia, serif;
+  --font-family-sans: var(--font-script), cursive;
+  --font-family-serif: var(--font-script), cursive;
+  --font-family-script: var(--font-script), cursive;
+  --font-family-mono: var(--font-script), cursive;
 
   /* ── Colour tokens ── */
   --color-bg:        var(--bg);
@@ -77,6 +79,7 @@ html {
 body {
   background-color: var(--bg);
   color: var(--fg);
+  font-family: var(--font-script), cursive;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

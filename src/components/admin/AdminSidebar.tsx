@@ -115,9 +115,9 @@ export default function AdminSidebar() {
       <div className="h-16 flex items-center px-5 border-b border-border">
         <Link
           href="/"
-          className="font-serif text-xl tracking-[0.12em] text-fg"
+          className="font-script text-2xl text-fg"
         >
-          VELVE
+          Velve' Bags
         </Link>
         <span className="ml-2 text-[9px] tracking-[0.15em] uppercase text-muted mt-0.5">
           Admin

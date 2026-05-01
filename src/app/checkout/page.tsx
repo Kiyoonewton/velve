@@ -28,6 +28,141 @@ const EMPTY_SHIPPING: ShippingData = {
   postcode: "",
 };
 
+function PaymentLinkModal({
+  url,
+  onClose,
+}: {
+  url: string;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "wallet">("card");
+
+  function copy() {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 pb-4 sm:pb-0">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/50"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="relative w-full max-w-sm bg-(--bg) rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-(--border)">
+          <h2 className="font-serif text-xl text-(--fg)">
+            Payment link
+          </h2>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center text-(--muted) hover:text-(--fg) transition-colors"
+            aria-label="Close"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-5">
+          <p className="text-[13px] text-(--muted) leading-[1.7] mb-5">
+            Please copy this link and paste it in your browser to complete payment.
+          </p>
+
+          {/* URL copy row */}
+          <div className="flex items-center gap-2 border border-(--border) rounded px-3 py-2.5 bg-(--surface) mb-6">
+            <p className="flex-1 text-[12px] text-(--fg) truncate font-mono select-all">
+              {url}
+            </p>
+            <button
+              onClick={copy}
+              className="shrink-0 text-(--muted) hover:text-(--gold) transition-colors"
+              aria-label="Copy link"
+            >
+              {copied ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+              )}
+            </button>
+          </div>
+
+          {/* Payment method tabs */}
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            {(["card", "wallet"] as const).map((method) => (
+              <button
+                key={method}
+                onClick={() => setPaymentMethod(method)}
+                className={`flex flex-col items-center gap-1.5 py-3 border rounded transition-colors duration-200 ${
+                  paymentMethod === method
+                    ? "border-(--fg) bg-(--surface)"
+                    : "border-(--border) text-(--muted)"
+                }`}
+              >
+                {method === "card" ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="1" y="4" width="22" height="16" rx="2" />
+                    <path d="M1 10h22" />
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 12V22H4V12" />
+                    <path d="M22 7H2v5h20V7z" />
+                    <path d="M12 22V7" />
+                    <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                    <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                  </svg>
+                )}
+                <span className="text-[11px] tracking-wide capitalize">
+                  Pay with {method}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Confirm button */}
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full py-4 text-center text-[12px] tracking-widest uppercase font-medium bg-(--fg) text-(--bg) hover:opacity-85 transition-opacity rounded"
+          >
+            Confirm payment
+          </a>
+
+          {/* Fallback link */}
+          <div className="mt-4 text-center">
+            <button
+              onClick={copy}
+              className="text-[11px] text-(--muted) underline underline-offset-2 hover:text-(--fg) transition-colors"
+            >
+              Payment button not working?
+            </button>
+          </div>
+
+          {/* Footer */}
+          <p className="text-center text-[11px] text-(--muted) mt-3">
+            Secure payment with Stripe. Cancel any time.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CheckoutPage() {
   return (
     <Suspense>
@@ -41,11 +176,12 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const promoCode = searchParams.get("code");
 
-  const { items, total, clearCart } = useCartStore();
+  const { items, total } = useCartStore();
   const [step, setStep] = useState<Step>("shipping");
   const [shipping, setShipping] = useState<ShippingData>(EMPTY_SHIPPING);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
   const orderTotal = total();
 
@@ -69,8 +205,8 @@ function CheckoutContent() {
       if (!res.ok || !data.url)
         throw new Error(data.error ?? "Checkout failed");
 
-      // Redirect to Stripe Checkout
-      window.location.href = data.url;
+      setPaymentUrl(data.url);
+      setLoading(false);
     } catch (err: any) {
       setError(err.message);
       setLoading(false);
@@ -93,17 +229,16 @@ function CheckoutContent() {
     );
   }
 
-  const inputClass = `
-    w-full h-10 px-3 text-sm
-    bg-[var(--bg)] border border-[var(--border)]
-    text-[var(--fg)] placeholder:text-[var(--muted)]
-    focus:outline-none focus:border-[var(--gold)]
-    transition-colors duration-200
-  `;
+  const inputClass =
+    "w-full h-10 px-3 text-sm bg-(--bg) border border-(--border) text-(--fg) placeholder:text-(--muted) focus:outline-none focus:border-(--gold) transition-colors duration-200";
   const labelClass =
-    "block text-[11px] tracking-[0.08em] uppercase text-[var(--muted)] mb-1.5";
+    "block text-[11px] tracking-[0.08em] uppercase text-(--muted) mb-1.5";
 
   return (
+    <>
+    {paymentUrl && (
+      <PaymentLinkModal url={paymentUrl} onClose={() => setPaymentUrl(null)} />
+    )}
     <div className="max-w-5xl mx-auto px-5 sm:px-8 py-10">
       {/* Steps indicator */}
       <div className="flex items-center gap-3 mb-10">
@@ -379,5 +514,6 @@ function CheckoutContent() {
         </div>
       </div>
     </div>
+    </>
   );
 }
