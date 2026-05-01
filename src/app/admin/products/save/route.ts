@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 
 export async function POST(request: NextRequest) {
   const supabaseAdmin = createClient(
@@ -15,6 +16,10 @@ export async function POST(request: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  revalidatePath("/");
+  revalidatePath("/shop");
+  if (payload.slug) revalidatePath(`/products/${payload.slug}`);
 
   return NextResponse.json({ success: true });
 }
