@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 
 export default function ProductGallery({
@@ -31,12 +30,11 @@ export default function ProductGallery({
                 ${active === i ? "border-(--fg)" : "border-(--border) hover:border-(--muted)"}
               `}
             >
-              <Image
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={src}
                 alt={`${name} view ${i + 1}`}
-                fill
-                className="object-cover"
-                sizes="64px"
+                className="w-full h-full object-cover"
               />
             </button>
           ))}
@@ -45,13 +43,11 @@ export default function ProductGallery({
 
       {/* Main image */}
       <div className="relative flex-1 aspect-3/4 overflow-hidden bg-(--surface)">
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src={images[active]}
           alt={name}
-          fill
-          priority
-          className="object-cover transition-opacity duration-300"
-          sizes="(max-width: 1024px) 100vw, 50vw"
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
         />
       </div>
     </div>

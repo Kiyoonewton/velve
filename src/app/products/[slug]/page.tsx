@@ -6,7 +6,7 @@ import AddToCartForm from "@/components/shop/Addtocartform";
 import ProductGrid from "@/components/shop/ProductGrid";
 
 interface PDPProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 async function getProduct(slug: string) {
@@ -37,7 +37,8 @@ async function getRelated(categoryId: string, excludeId: string) {
 export async function generateMetadata({
   params,
 }: PDPProps): Promise<Metadata> {
-  const product = await getProduct(params.slug);
+  const { slug } = await params;
+  const product = await getProduct(slug);
   if (!product) return {};
   return {
     title: product.meta_title ?? product.name,
@@ -47,7 +48,8 @@ export async function generateMetadata({
 }
 
 export default async function ProductDetailPage({ params }: PDPProps) {
-  const product = await getProduct(params.slug);
+  const { slug } = await params;
+  const product = await getProduct(slug);
   if (!product) notFound();
 
   const related = product.category_id
