@@ -19,7 +19,7 @@ async function getProducts(filters: Awaited<ShopPageProps["searchParams"]>) {
   let query = supabase
     .from("products")
     .select(
-      "id, name, slug, price, compare_price, images, colours, is_featured, category_id",
+      "id, name, slug, price, compare_price, images, colours, is_featured, category_id, production_date",
     )
     .eq("is_published", true);
 

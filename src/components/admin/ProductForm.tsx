@@ -21,6 +21,7 @@ interface ProductFormProps {
     weight_grams: number | null;
     meta_title: string | null;
     meta_desc: string | null;
+    production_date: string | null;
   };
 }
 
@@ -50,6 +51,7 @@ export default function ProductForm({ product }: ProductFormProps) {
     weight_grams: product?.weight_grams?.toString() ?? "",
     meta_title: product?.meta_title ?? "",
     meta_desc: product?.meta_desc ?? "",
+    production_date: product?.production_date ?? "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -92,6 +94,7 @@ export default function ProductForm({ product }: ProductFormProps) {
       weight_grams: form.weight_grams ? parseInt(form.weight_grams) : null,
       meta_title: form.meta_title || null,
       meta_desc: form.meta_desc || null,
+      production_date: form.production_date || null,
     };
 
     const res = await fetch("/admin/products/save", {
@@ -164,6 +167,19 @@ export default function ProductForm({ product }: ProductFormProps) {
             className={`${inputClass} h-auto py-2.5 resize-none`}
             placeholder="Describe the product — materials, craftsmanship, dimensions…"
           />
+        </div>
+
+        <div className={fieldClass}>
+          <label className={labelClass}>Production date</label>
+          <input
+            type="date"
+            value={form.production_date}
+            onChange={(e) => set("production_date", e.target.value)}
+            className={inputClass}
+          />
+          <p className="text-[11px] text-[var(--muted)] mt-1">
+            Displayed on the product listing so customers can see when it was made
+          </p>
         </div>
       </div>
 

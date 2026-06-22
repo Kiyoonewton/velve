@@ -9,7 +9,7 @@ export default async function AdminProductsPage() {
   const { data: products } = await supabase
     .from("products")
     .select(
-      "id, name, slug, price, stock, is_published, is_featured, images, category_id",
+      "id, name, slug, price, stock, is_published, is_featured, images, category_id, production_date",
     )
     .order("created_at", { ascending: false });
 
@@ -68,7 +68,7 @@ export default async function AdminProductsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)]">
-                {["Product", "Price", "Stock", "Status", ""].map((h) => (
+                {["Product", "Production date", "Price", "Stock", "Status", ""].map((h) => (
                   <th
                     key={h}
                     className="text-left text-[10px] tracking-[0.1em] uppercase text-[var(--muted)] px-5 py-3 font-medium"
@@ -105,6 +105,15 @@ export default async function AdminProductsPage() {
                         </p>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-5 py-3 text-[13px] text-[var(--muted)]">
+                    {p.production_date
+                      ? new Date(p.production_date).toLocaleDateString("en-US", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : <span className="text-[var(--border)]">—</span>}
                   </td>
                   <td className="px-5 py-3 text-[var(--fg)] text-[13px]">
                     ${Number(p.price).toFixed(2)}

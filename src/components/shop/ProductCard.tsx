@@ -15,6 +15,7 @@ export interface Product {
   colours?: string[];
   category?: string;
   is_featured?: boolean;
+  production_date?: string | null;
 }
 
 interface ProductCardProps {
@@ -188,6 +189,17 @@ export default function ProductCard({
             </span>
           )}
         </div>
+
+        {/* Production date */}
+        {product.production_date && (
+          <p className="text-[11px] text-[var(--muted)] mt-1">
+            Made{" "}
+            {new Date(product.production_date).toLocaleDateString("en-US", {
+              month: "long",
+              year: "numeric",
+            })}
+          </p>
+        )}
       </div>
     </Link>
   );
