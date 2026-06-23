@@ -1,6 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
-import OrderStatusUpdater from "@/components/admin/OrderStatusUpdater";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import OrderStatusUpdater, { CancelOrderButton } from "@/components/admin/OrderStatusUpdater";
 
+export const dynamic = "force-dynamic";
 export const metadata = { title: "Orders" };
 
 const ORDER_STATUSES = [
@@ -9,8 +10,6 @@ const ORDER_STATUSES = [
   "processing",
   "shipped",
   "delivered",
-  "cancelled",
-  "refunded",
 ];
 
 const STATUS_STYLES: Record<string, string> = {
@@ -30,7 +29,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default async function AdminOrdersPage() {
-  const supabase = await createClient();
+  const supabase = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const { data: orders } = await supabase
     .from("orders")
     .select(
@@ -64,6 +63,7 @@ export default async function AdminOrdersPage() {
                   "Status",
                   "Tracking",
                   "Date",
+                  "Cancel",
                 ].map((h) => (
                   <th
                     key={h}
@@ -123,6 +123,9 @@ export default async function AdminOrdersPage() {
                         month: "short",
                         year: "2-digit",
                       })}
+                    </td>
+                    <td className="px-5 py-4">
+                      <CancelOrderButton orderId={order.id} currentStatus={order.status} />
                     </td>
                   </tr>
                 );

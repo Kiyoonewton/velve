@@ -15,6 +15,17 @@ interface Props {
   };
 }
 
+const EMPTY_SHIPPING = {
+  fullName: "",
+  email: "",
+  phone: "",
+  address: "",
+  city: "",
+  state: "",
+  country: "NG",
+  postcode: "",
+};
+
 const COLOUR_HEX: Record<string, string> = {
   gold: "#C9A96E",
   silver: "#C0C0C0",
@@ -31,7 +42,42 @@ export default function AddToCartForm({ product }: Props) {
   const [size, setSize] = useState(product.sizes[0] ?? "");
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+  const [buyLoading, setBuyLoading] = useState(false);
+  const [buyError, setBuyError] = useState("");
+  const [showShipping, setShowShipping] = useState(false);
+  const [shipping, setShipping] = useState(EMPTY_SHIPPING);
   const addItem = useCartStore((s) => s.addItem);
+
+  function setField(key: keyof typeof EMPTY_SHIPPING, value: string) {
+    setShipping((s) => ({ ...s, [key]: value }));
+  }
+
+  async function handleBuyNow() {
+    if (outOfStock) return;
+    if (!showShipping) { setShowShipping(true); return; }
+    if (!shipping.fullName || !shipping.email || !shipping.address || !shipping.city) {
+      setBuyError("Please fill in all required fields.");
+      return;
+    }
+    setBuyLoading(true);
+    setBuyError("");
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [{ id: product.id, name: product.name, price: product.price, image: product.image, colour, size, quantity: qty }],
+          shipping,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error ?? "Checkout failed");
+      window.location.href = data.url;
+    } catch (err: any) {
+      setBuyError(err.message);
+      setBuyLoading(false);
+    }
+  }
 
   const outOfStock = product.stock === 0;
 
@@ -168,6 +214,76 @@ export default function AddToCartForm({ product }: Props) {
               : "Add to bag"}
         </button>
       </div>
+
+      {/* Buy Now */}
+      {!outOfStock && (
+        <button
+          onClick={handleBuyNow}
+          disabled={buyLoading}
+          className="w-full h-12 text-[12px] tracking-widest uppercase font-medium border border-(--fg) text-(--fg) hover:bg-(--fg) hover:text-(--bg) disabled:opacity-50 transition-all duration-200"
+        >
+          {buyLoading ? "Redirecting…" : "Buy now"}
+        </button>
+      )}
+
+      {/* Inline shipping form for Buy Now */}
+      {showShipping && !outOfStock && (
+        <div className="border border-(--border) p-4 space-y-3 mt-1">
+          <p className="text-[11px] tracking-widest uppercase text-(--muted)">Shipping details</p>
+          {[
+            { key: "fullName", label: "Full name *", placeholder: "Ada Okafor" },
+            { key: "email", label: "Email *", placeholder: "ada@email.com" },
+            { key: "phone", label: "Phone", placeholder: "+234 800 000 0000" },
+            { key: "address", label: "Address *", placeholder: "123 Victoria Island" },
+            { key: "city", label: "City *", placeholder: "Lagos" },
+            { key: "state", label: "State", placeholder: "Lagos State" },
+            { key: "postcode", label: "Postcode", placeholder: "100001" },
+          ].map(({ key, label, placeholder }) => (
+            <div key={key}>
+              <label className="block text-[10px] tracking-wide uppercase text-(--muted) mb-1">{label}</label>
+              <input
+                type={key === "email" ? "email" : "text"}
+                value={shipping[key as keyof typeof EMPTY_SHIPPING]}
+                onChange={(e) => setField(key as keyof typeof EMPTY_SHIPPING, e.target.value)}
+                placeholder={placeholder}
+                className="w-full h-9 px-3 text-sm bg-(--bg) border border-(--border) text-(--fg) placeholder:text-(--muted) focus:outline-none focus:border-(--gold) transition-colors"
+              />
+            </div>
+          ))}
+          <div>
+            <label className="block text-[10px] tracking-wide uppercase text-(--muted) mb-1">Country</label>
+            <select
+              value={shipping.country}
+              onChange={(e) => setField("country", e.target.value)}
+              className="w-full h-9 px-3 text-sm bg-(--bg) border border-(--border) text-(--fg) focus:outline-none focus:border-(--gold) transition-colors"
+            >
+              <option value="NG">Nigeria</option>
+              <option value="GH">Ghana</option>
+              <option value="KE">Kenya</option>
+              <option value="ZA">South Africa</option>
+              <option value="GB">United Kingdom</option>
+              <option value="US">United States</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+          {buyError && <p className="text-[12px] text-red-500">{buyError}</p>}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={handleBuyNow}
+              disabled={buyLoading}
+              className="flex-1 h-10 text-[11px] tracking-widest uppercase font-medium bg-(--fg) text-(--bg) hover:opacity-85 disabled:opacity-50 transition-opacity"
+            >
+              {buyLoading ? "Redirecting…" : "Confirm & pay"}
+            </button>
+            <button
+              onClick={() => { setShowShipping(false); setBuyError(""); }}
+              className="px-4 h-10 text-[11px] uppercase tracking-wide text-(--muted) border border-(--border) hover:text-(--fg) transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

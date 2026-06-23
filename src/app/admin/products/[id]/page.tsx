@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import ProductForm from "@/components/admin/ProductForm";
 
+export const dynamic = "force-dynamic";
 export const metadata = { title: "Edit product" };
 
 export default async function EditProductPage({
@@ -10,12 +11,12 @@ export default async function EditProductPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
   const { data: product } = await supabase
     .from("products")
     .select(
-      "id, name, slug, description, price, compare_price, stock, images, colours, tags, is_published, is_featured, weight_grams, meta_title, meta_desc",
+      "id, name, slug, description, price, compare_price, stock, images, colours, tags, is_published, is_featured, weight_grams, meta_title, meta_desc, production_date",
     )
     .eq("id", id)
     .single();

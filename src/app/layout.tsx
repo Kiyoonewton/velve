@@ -27,6 +27,12 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: { default: "Velve' Bags", template: "%s | Velve' Bags" },
   description: "Velve' Bags — handcrafted beaded bags and accessories.",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" },
+    ],
+  },
 };
 
 export default function RootLayout({

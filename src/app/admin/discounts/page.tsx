@@ -1,10 +1,11 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import DiscountForm, { DiscountActions } from "@/components/admin/DiscountForm";
 
+export const dynamic = "force-dynamic";
 export const metadata = { title: "Discounts" };
 
 export default async function AdminDiscountsPage() {
-  const supabase = await createClient();
+  const supabase = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const { data: codes } = await supabase
     .from("discount_codes")
     .select("*")

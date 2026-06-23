@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Create pending order in Supabase
-    await supabase.from("orders").insert({
+    const { error: insertError } = await supabase.from("orders").insert({
       email: shipping.email,
       items: items.map((item: any) => {
         const p = products.find((pr) => pr.id === item.id);
@@ -135,6 +135,9 @@ export async function POST(req: NextRequest) {
       shipping_phone: shipping.phone,
       stripe_session_id: session.id,
     });
+
+    if (insertError) console.error("Order insert error:", insertError.message);
+    else console.log("Order saved to DB with session:", session.id);
 
     return NextResponse.json({ url: session.url });
   } catch (err: any) {
