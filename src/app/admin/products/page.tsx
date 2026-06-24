@@ -1,4 +1,4 @@
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import pool from "@/lib/db";
 import Link from "next/link";
 import ProductActions from "@/components/admin/ProductActions";
 
@@ -6,13 +6,9 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Products" };
 
 export default async function AdminProductsPage() {
-  const supabase = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-  const { data: products } = await supabase
-    .from("products")
-    .select(
-      "id, name, slug, price, stock, is_published, is_featured, images, category_id, production_date",
-    )
-    .order("created_at", { ascending: false });
+  const { rows: products } = await pool.query(
+    `SELECT id, name, slug, price::float, stock, is_published, is_featured, images, category_id, production_date FROM products ORDER BY created_at DESC`,
+  );
 
   return (
     <div className="max-w-5xl">

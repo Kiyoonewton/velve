@@ -72,7 +72,7 @@ export default function ContactPage() {
               Quickest response
             </p>
             <a
-              href="https://wa.me/2348000000000"
+              href="https://wa.me/17577700766"
               target="_blank"
               rel="noopener noreferrer"
               className="
@@ -103,10 +103,10 @@ export default function ContactPage() {
               Email
             </p>
             <a
-              href="mailto:hello@velve.co"
+              href="mailto:owoseenionikepe@gmail.com"
               className="text-[14px] text-fg hover:text-gold transition-colors"
             >
-              hello@velve.co
+              owoseenionikepe@gmail.com
             </a>
           </div>
 
@@ -118,28 +118,8 @@ export default function ContactPage() {
             <div className="flex gap-4">
               {[
                 {
-                  label: "Instagram",
-                  href: "https://instagram.com/velve",
-                  icon: (
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-                      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-                      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-                    </svg>
-                  ),
-                },
-                {
                   label: "TikTok",
-                  href: "https://tiktok.com/@velve",
+                  href: "https://www.tiktok.com/@velve.bags",
                   icon: (
                     <svg
                       width="18"

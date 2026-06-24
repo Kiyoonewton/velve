@@ -1,4 +1,5 @@
 const SUPPORT_PHONE = "+1 757-770-0766";
+const SUPPORT_EMAIL = "owoseenionikepe@gmail.com";
 const SITE_URL = "https://velvebags.com";
 
 function baseLayout(content: string) {

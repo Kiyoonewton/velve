@@ -1,31 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 export default function NewsletterForm() {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<
-    "idle" | "loading" | "success" | "error"
-  >("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email) return;
     setStatus("loading");
 
-    const supabase = createClient();
-    const { error } = await supabase
-      .from("newsletter_subscribers")
-      .insert({ email });
+    const res = await fetch("/api/newsletter", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
 
-    if (error && error.code !== "23505") {
-      // 23505 = unique violation (already subscribed)
+    if (res.ok) {
+      setStatus("success");
+      setEmail("");
+    } else {
       setStatus("error");
-      return;
     }
-    setStatus("success");
-    setEmail("");
   }
 
   if (status === "success") {

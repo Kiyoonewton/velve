@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { createClient } from "@/lib/supabase/server";
+import pool from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -13,41 +13,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No items in cart" }, { status: 400 });
     }
 
-    const supabase = await createClient();
-
-    // Validate products and prices server-side — never trust client prices
     const productIds = items.map((i: any) => i.id);
-    const { data: products } = await supabase
-      .from("products")
-      .select("id, name, price, stock, images")
-      .in("id", productIds)
-      .eq("is_published", true);
+    const { rows: products } = await pool.query(
+      `SELECT id, name, price, stock, images FROM products WHERE id = ANY($1) AND is_published = true`,
+      [productIds],
+    );
 
-    if (!products?.length) {
-      return NextResponse.json(
-        { error: "Products not found" },
-        { status: 400 },
-      );
+    if (!products.length) {
+      return NextResponse.json({ error: "Products not found" }, { status: 400 });
     }
 
-    // Validate promo code
     let discountAmount = 0;
     let discountCodeId: string | null = null;
 
     if (promoCode) {
-      const { data: code } = await supabase
-        .from("discount_codes")
-        .select("*")
-        .eq("code", promoCode.toUpperCase())
-        .eq("is_active", true)
-        .single();
-
+      const { rows: codes } = await pool.query(
+        `SELECT * FROM discount_codes WHERE code = $1 AND is_active = true AND (expires_at IS NULL OR expires_at > now()) AND (usage_limit IS NULL OR usage_count < usage_limit) LIMIT 1`,
+        [promoCode.toUpperCase()],
+      );
+      const code = codes[0];
       if (code) {
         const subtotal = items.reduce((acc: number, item: any) => {
-          const product = products.find((p) => p.id === item.id);
-          return acc + (product?.price ?? 0) * item.quantity;
+          const product = products.find((p: any) => p.id === item.id);
+          return acc + (Number(product?.price) ?? 0) * item.quantity;
         }, 0);
-
         discountCodeId = code.id;
         discountAmount =
           code.type === "percentage"
@@ -56,25 +45,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Build Stripe line items using server-validated prices
-    const lineItems = items.map(
-      (item: any) => {
-        const product = products.find((p) => p.id === item.id)!;
-        return {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: item.name,
-              images: product.images?.[0] ? [product.images[0]] : [],
-            },
-            unit_amount: Math.round(product.price * 100), // cents
+    const lineItems = items.map((item: any) => {
+      const product = products.find((p: any) => p.id === item.id)!;
+      return {
+        price_data: {
+          currency: "usd",
+          product_data: {
+            name: item.name,
+            images: product.images?.[0] ? [product.images[0]] : [],
           },
-          quantity: item.quantity,
-        };
-      },
-    );
+          unit_amount: Math.round(Number(product.price) * 100),
+        },
+        quantity: item.quantity,
+      };
+    });
 
-    // Add discount as a negative line item
     if (discountAmount > 0) {
       lineItems.push({
         price_data: {
@@ -87,12 +72,11 @@ export async function POST(req: NextRequest) {
     }
 
     const subtotal = items.reduce((acc: number, item: any) => {
-      const p = products.find((pr) => pr.id === item.id);
-      return acc + (p?.price ?? 0) * item.quantity;
+      const p = products.find((pr: any) => pr.id === item.id);
+      return acc + (Number(p?.price) ?? 0) * item.quantity;
     }, 0);
     const orderTotal = Math.max(0, subtotal - discountAmount);
 
-    // Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
@@ -106,39 +90,44 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Create pending order in Supabase
-    const { error: insertError } = await supabase.from("orders").insert({
-      email: shipping.email,
-      items: items.map((item: any) => {
-        const p = products.find((pr) => pr.id === item.id);
-        return {
-          product_id: item.id,
-          name: item.name,
-          price: p?.price ?? item.price,
-          quantity: item.quantity,
-          colour: item.colour,
-          size: item.size,
-          image_url: p?.images?.[0] ?? item.image,
-        };
-      }),
-      subtotal: subtotal,
-      discount_amount: discountAmount,
-      discount_code_id: discountCodeId,
-      total: orderTotal,
-      status: "pending",
-      shipping_name: shipping.fullName,
-      shipping_address: shipping.address,
-      shipping_city: shipping.city,
-      shipping_state: shipping.state,
-      shipping_country: shipping.country,
-      shipping_postcode: shipping.postcode,
-      shipping_phone: shipping.phone,
-      stripe_session_id: session.id,
-    });
+    // Generate order number
+    const { rows: countRows } = await pool.query(`SELECT COUNT(*) FROM orders`);
+    const orderNumber = `VLV-${String(Number(countRows[0].count) + 1).padStart(5, "0")}`;
 
-    if (insertError) console.error("Order insert error:", insertError.message);
-    else console.log("Order saved to DB with session:", session.id);
+    const { rows: inserted } = await pool.query(
+      `INSERT INTO orders (order_number, email, items, subtotal, discount_amount, discount_code_id, total, status, shipping_name, shipping_address, shipping_city, shipping_state, shipping_country, shipping_postcode, shipping_phone, stripe_session_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id`,
+      [
+        orderNumber,
+        shipping.email,
+        JSON.stringify(items.map((item: any) => {
+          const p = products.find((pr: any) => pr.id === item.id);
+          return {
+            product_id: item.id,
+            name: item.name,
+            price: Number(p?.price ?? item.price),
+            quantity: item.quantity,
+            colour: item.colour,
+            size: item.size,
+            image_url: p?.images?.[0] ?? item.image,
+          };
+        })),
+        subtotal,
+        discountAmount,
+        discountCodeId,
+        orderTotal,
+        shipping.fullName,
+        shipping.address,
+        shipping.city,
+        shipping.state,
+        shipping.country,
+        shipping.postcode,
+        shipping.phone,
+        session.id,
+      ],
+    );
 
+    console.log("Order saved to DB:", inserted[0]?.id, "session:", session.id);
     return NextResponse.json({ url: session.url });
   } catch (err: any) {
     console.error("Checkout error:", err);

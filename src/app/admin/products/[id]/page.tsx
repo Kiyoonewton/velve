@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import pool from "@/lib/db";
 import ProductForm from "@/components/admin/ProductForm";
 
 export const dynamic = "force-dynamic";
@@ -11,15 +11,11 @@ export default async function EditProductPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-
-  const { data: product } = await supabase
-    .from("products")
-    .select(
-      "id, name, slug, description, price, compare_price, stock, images, colours, tags, is_published, is_featured, weight_grams, meta_title, meta_desc, production_date",
-    )
-    .eq("id", id)
-    .single();
+  const { rows } = await pool.query(
+    `SELECT id, name, slug, description, price, compare_price, stock, images, colours, tags, is_published, is_featured, weight_grams, meta_title, meta_desc, production_date FROM products WHERE id = $1`,
+    [id],
+  );
+  const product = rows[0];
 
   if (!product) notFound();
 

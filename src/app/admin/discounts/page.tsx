@@ -1,15 +1,11 @@
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import pool from "@/lib/db";
 import DiscountForm, { DiscountActions } from "@/components/admin/DiscountForm";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Discounts" };
 
 export default async function AdminDiscountsPage() {
-  const supabase = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-  const { data: codes } = await supabase
-    .from("discount_codes")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const { rows: codes } = await pool.query(`SELECT * FROM discount_codes ORDER BY created_at DESC`);
 
   return (
     <div className="max-w-4xl">

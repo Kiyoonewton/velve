@@ -65,7 +65,7 @@ function OrderConfirmationContent() {
         <p className="text-muted">
           Need help?{" "}
           <a
-            href="https://wa.me/2348000000000"
+            href="https://wa.me/17577700766"
             target="_blank"
             rel="noopener noreferrer"
             className="text-gold hover:underline"
@@ -73,8 +73,8 @@ function OrderConfirmationContent() {
             WhatsApp us
           </a>{" "}
           or email{" "}
-          <a href="mailto:hello@velve.co" className="text-gold hover:underline">
-            hello@velve.co
+          <a href="mailto:owoseenionikepe@gmail.com" className="text-gold hover:underline">
+            owoseenionikepe@gmail.com
           </a>
         </p>
       </div>

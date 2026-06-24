@@ -1,31 +1,22 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import pool from "@/lib/db";
 import NewsletterForm from "@/components/shop/Newsletterform";
 import HeroSlider from "@/components/shop/HeroSlider";
 
 async function getFeaturedProducts() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("products")
-    .select(
-      "id, name, slug, price, compare_price, images, colours, is_featured, stock",
-    )
-    .eq("is_published", true)
-    .eq("is_featured", true)
-    .order("created_at", { ascending: false })
-    .limit(4);
-  return data ?? [];
+  const { rows } = await pool.query(
+    `SELECT id, name, slug, price::float, compare_price::float, images, colours, is_featured, stock FROM products WHERE is_published = true AND is_featured = true ORDER BY created_at DESC LIMIT 4`,
+  );
+  return rows;
 }
 
 async function getNewArrivals() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("products")
-    .select("id, name, slug, price, compare_price, images, colours")
-    .eq("is_published", true)
-    .order("created_at", { ascending: false })
-    .limit(8);
-  return data ?? [];
+  const { rows } = await pool.query(
+    `SELECT id, name, slug, price::float, compare_price::float, images, colours FROM products WHERE is_published = true ORDER BY created_at DESC LIMIT 8`,
+  );
+  return rows;
 }
 
 const FEATURES = [

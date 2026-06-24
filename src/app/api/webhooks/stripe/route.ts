@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { Resend } from "resend";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import pool from "@/lib/db";
 import { orderConfirmationEmail, ownerNotificationEmail, orderRefundedEmail } from "@/lib/emails";
 
 export async function POST(req: NextRequest) {
@@ -27,22 +27,11 @@ export async function POST(req: NextRequest) {
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
 
-    const supabase = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    const { rows } = await pool.query(
+      `UPDATE orders SET status = 'paid', stripe_payment_id = $1 WHERE stripe_session_id = $2 RETURNING *`,
+      [session.payment_intent as string, session.id],
     );
-
-    const { data: order, error: updateError } = await supabase
-      .from("orders")
-      .update({
-        status: "paid",
-        stripe_payment_id: session.payment_intent as string,
-      })
-      .eq("stripe_session_id", session.id)
-      .select()
-      .single();
-
-    if (updateError) console.error("Order update error:", updateError.message);
+    const order = rows[0] ?? null;
     console.log("Webhook session_id:", session.id);
     console.log("Order from DB:", order ? `found — ${order.email}` : "null (session_id not matched)");
 
@@ -78,7 +67,17 @@ export async function POST(req: NextRequest) {
           messaging_product: "whatsapp",
           to: process.env.WHATSAPP_RECIPIENT,
           type: "template",
-          template: { name: "hello_world", language: { code: "en_US" } },
+          template: {
+            name: "order_alert",
+            language: { code: "en_US" },
+            components: [{
+              type: "body",
+              parameters: [
+                { type: "text", text: order?.order_number ?? "New Order" },
+                { type: "text", text: `$${Number(order?.total ?? 0).toFixed(2)}` },
+              ],
+            }],
+          },
         }),
       });
       const waData = await waRes.json();
@@ -110,7 +109,17 @@ export async function POST(req: NextRequest) {
           messaging_product: "whatsapp",
           to: process.env.WHATSAPP_RECIPIENT,
           type: "template",
-          template: { name: "hello_world", language: { code: "en_US" } },
+          template: {
+            name: "order_alert",
+            language: { code: "en_US" },
+            components: [{
+              type: "body",
+              parameters: [
+                { type: "text", text: "New Order" },
+                { type: "text", text: `$${((session.amount_total ?? 0) / 100).toFixed(2)}` },
+              ],
+            }],
+          },
         }),
       });
       const waData = await waRes.json();
@@ -125,16 +134,11 @@ export async function POST(req: NextRequest) {
 
     if (!paymentIntentId) return NextResponse.json({ received: true });
 
-    const supabase = createSupabaseClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    const { rows: refundRows } = await pool.query(
+      `SELECT * FROM orders WHERE stripe_payment_id = $1 LIMIT 1`,
+      [paymentIntentId],
     );
-
-    const { data: order } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("stripe_payment_id", paymentIntentId)
-      .single();
+    const order = refundRows[0] ?? null;
 
     if (!order) {
       console.log("charge.refunded: no order found for payment_intent", paymentIntentId);

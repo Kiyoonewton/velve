@@ -1,19 +1,15 @@
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import pool from "@/lib/db";
 import NewsletterExport from "@/components/admin/NewsletterExport";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Newsletter" };
 
 export default async function AdminNewsletterPage() {
-  const supabase = createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-  const { data: subscribers, count } = await supabase
-    .from("newsletter_subscribers")
-    .select("id, email, is_active, created_at", { count: "exact" })
-    .order("created_at", { ascending: false });
+  const { rows: subscribers } = await pool.query(
+    `SELECT id, email, is_active, created_at FROM newsletter_subscribers ORDER BY created_at DESC`,
+  );
 
-  const emails = (subscribers ?? [])
-    .filter((s) => s.is_active)
-    .map((s) => s.email);
+  const emails = subscribers.filter((s: any) => s.is_active).map((s: any) => s.email);
 
   return (
     <div className="max-w-3xl">
@@ -21,7 +17,7 @@ export default async function AdminNewsletterPage() {
         <div>
           <h1 className="font-serif text-3xl text-[var(--fg)]">Newsletter</h1>
           <p className="text-sm text-[var(--muted)] mt-1">
-            {count ?? 0} subscribers total
+            {subscribers.length} subscribers total
           </p>
         </div>
         <NewsletterExport emails={emails} />

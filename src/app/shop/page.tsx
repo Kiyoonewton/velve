@@ -1,4 +1,6 @@
-import { createClient } from "@/lib/supabase/server";
+export const dynamic = "force-dynamic";
+
+import pool from "@/lib/db";
 import ProductGrid from "@/components/shop/ProductGrid";
 import ShopFilters from "@/components/shop/ShopFilters";
 
@@ -14,85 +16,57 @@ interface ShopPageProps {
 }
 
 async function getProducts(filters: Awaited<ShopPageProps["searchParams"]>) {
-  const supabase = await createClient();
-
-  let query = supabase
-    .from("products")
-    .select(
-      "id, name, slug, price, compare_price, images, colours, is_featured, category_id, production_date",
-    )
-    .eq("is_published", true);
+  let query = `SELECT id, name, slug, price::float, compare_price::float, images, colours, is_featured, category_id, production_date FROM products WHERE is_published = true`;
+  const params: any[] = [];
 
   if (filters.category) {
-    const { data: cat } = await supabase
-      .from("categories")
-      .select("id")
-      .eq("slug", filters.category)
-      .single();
-    if (cat) query = query.eq("category_id", cat.id);
+    params.push(filters.category);
+    const { rows: cats } = await pool.query(`SELECT id FROM categories WHERE slug = $1`, [filters.category]);
+    if (cats[0]) {
+      params.push(cats[0].id);
+      query += ` AND category_id = $${params.length}`;
+      params.pop();
+      params.pop();
+      params.push(cats[0].id);
+      query = query.replace(`AND category_id = $${params.length}`, `AND category_id = $${params.length}`);
+    }
   }
 
   if (filters.colour) {
-    query = query.contains("colours", [filters.colour]);
+    params.push(filters.colour);
+    query += ` AND $${params.length} = ANY(colours)`;
   }
 
   if (filters.search) {
-    query = query.textSearch("fts", filters.search, { type: "websearch" });
+    params.push(filters.search);
+    query += ` AND fts @@ websearch_to_tsquery('english', $${params.length})`;
   }
 
   switch (filters.sort) {
-    case "price-asc":
-      query = query.order("price", { ascending: true });
-      break;
-    case "price-desc":
-      query = query.order("price", { ascending: false });
-      break;
-    case "newest":
-      query = query.order("created_at", { ascending: false });
-      break;
-    default:
-      query = query
-        .order("is_featured", { ascending: false })
-        .order("created_at", { ascending: false });
+    case "price-asc":  query += ` ORDER BY price ASC`; break;
+    case "price-desc": query += ` ORDER BY price DESC`; break;
+    case "newest":     query += ` ORDER BY created_at DESC`; break;
+    default:           query += ` ORDER BY is_featured DESC, created_at DESC`;
   }
 
-  const { data } = await query;
-  return data ?? [];
+  const { rows } = await pool.query(query, params);
+  return rows;
 }
 
 async function getCategories() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("categories")
-    .select("name, slug")
-    .order("sort_order");
-  return data ?? [];
+  const { rows } = await pool.query(`SELECT name, slug FROM categories ORDER BY sort_order`);
+  return rows;
 }
 
-const COLOURS = [
-  "Gold",
-  "Silver",
-  "Black",
-  "White",
-  "Multi",
-  "Pink",
-  "Blue",
-  "Green",
-];
+const COLOURS = ["Gold", "Silver", "Black", "White", "Multi", "Pink", "Blue", "Green"];
 
 export default async function ShopPage({ searchParams }: ShopPageProps) {
   const filters = await searchParams;
-
-  const [products, categories] = await Promise.all([
-    getProducts(filters),
-    getCategories(),
-  ]);
-
-  const activeCategory = categories.find((c) => c.slug === filters.category);
+  const [products, categories] = await Promise.all([getProducts(filters), getCategories()]);
+  const activeCategory = categories.find((c: any) => c.slug === filters.category);
 
   return (
     <div className="max-w-7xl mx-auto px-5 sm:px-8 py-10">
-      {/* Header */}
       <div className="mb-8 flex items-end justify-between">
         <div>
           <p className="text-[10px] tracking-[0.2em] uppercase text-muted mb-2">
@@ -108,7 +82,6 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
       </div>
 
       <div className="flex gap-10">
-        {/* Sidebar filters */}
         <aside className="hidden lg:block w-48 shrink-0">
           <ShopFilters
             categories={categories}
@@ -119,10 +92,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
             search={filters.search}
           />
         </aside>
-
-        {/* Product grid */}
         <div className="flex-1 min-w-0">
-          {/* Mobile filters row */}
           <div className="lg:hidden mb-6">
             <ShopFilters
               categories={categories}

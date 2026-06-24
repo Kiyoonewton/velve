@@ -1,5 +1,7 @@
+export const dynamic = "force-dynamic";
+
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import pool from "@/lib/db";
 import type { Metadata } from "next";
 import ProductGallery from "@/components/shop/ProductGallery";
 import AddToCartForm from "@/components/shop/Addtocartform";
@@ -10,28 +12,26 @@ interface PDPProps {
 }
 
 async function getProduct(slug: string) {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("products")
-    .select("*, categories(name, slug)")
-    .eq("slug", slug)
-    .eq("is_published", true)
-    .single();
-  return data;
+  const { rows } = await pool.query(
+    `SELECT p.*, p.price::float, p.compare_price::float, c.name as category_name, c.slug as category_slug
+     FROM products p LEFT JOIN categories c ON p.category_id = c.id
+     WHERE p.slug = $1 AND p.is_published = true LIMIT 1`,
+    [slug],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    ...row,
+    categories: row.category_name ? { name: row.category_name, slug: row.category_slug } : null,
+  };
 }
 
 async function getRelated(categoryId: string, excludeId: string) {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("products")
-    .select(
-      "id, name, slug, price, compare_price, images, colours, is_featured",
-    )
-    .eq("category_id", categoryId)
-    .eq("is_published", true)
-    .neq("id", excludeId)
-    .limit(4);
-  return data ?? [];
+  const { rows } = await pool.query(
+    `SELECT id, name, slug, price::float, compare_price::float, images, colours, is_featured FROM products WHERE category_id = $1 AND is_published = true AND id != $2 LIMIT 4`,
+    [categoryId, excludeId],
+  );
+  return rows;
 }
 
 export async function generateMetadata({
@@ -161,7 +161,7 @@ export default async function ProductDetailPage({ params }: PDPProps) {
 
           {/* WhatsApp CTA */}
           <a
-            href={`https://wa.me/2348000000000?text=Hi! I'm interested in: ${encodeURIComponent(product.name)}`}
+            href={`https://wa.me/17577700766?text=Hi! I'm interested in: ${encodeURIComponent(product.name)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="

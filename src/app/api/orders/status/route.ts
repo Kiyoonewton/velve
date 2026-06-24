@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import Stripe from "stripe";
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import pool from "@/lib/db";
 import { orderProcessingEmail, orderShippedEmail, orderDeliveredEmail, orderCancelledEmail, orderRefundedEmail } from "@/lib/emails";
-
-// Stripe is initialised lazily inside the handler so the env var is available at runtime
 
 export async function POST(req: NextRequest) {
   const { orderId, status, trackingNumber } = await req.json();
@@ -13,41 +11,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing orderId or status" }, { status: 400 });
   }
 
-  const supabase = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
-
-  // When cancelling, issue a Stripe refund first then store as "refunded"
+  // When cancelling, issue a Stripe refund first then mark as refunded
   if (status === "cancelled") {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-    const { data: existing } = await supabase
-      .from("orders")
-      .select("stripe_payment_id, email, order_number, shipping_name, items, total, id, created_at, discount_amount, shipping_address, shipping_city, shipping_state, shipping_country, shipping_postcode")
-      .eq("id", orderId)
-      .single();
+    const { rows: existing } = await pool.query(`SELECT * FROM orders WHERE id = $1`, [orderId]);
+    const ex = existing[0];
 
-    if (existing?.stripe_payment_id) {
+    if (ex?.stripe_payment_id) {
       try {
-        await stripe.refunds.create({ payment_intent: existing.stripe_payment_id });
-        console.log(`Stripe refund issued for ${existing.stripe_payment_id}`);
+        await stripe.refunds.create({ payment_intent: ex.stripe_payment_id });
+        console.log(`Stripe refund issued for ${ex.stripe_payment_id}`);
       } catch (err: any) {
         console.error("Stripe refund failed:", err.message);
-        // Still cancel the order even if refund fails (e.g. already refunded)
       }
     }
 
-    // Mark as refunded in DB
-    const { data: order, error } = await supabase
-      .from("orders")
-      .update({ status: "refunded" })
-      .eq("id", orderId)
-      .select()
-      .single();
+    const { rows } = await pool.query(
+      `UPDATE orders SET status = 'refunded' WHERE id = $1 RETURNING *`,
+      [orderId],
+    );
+    const order = rows[0];
+    if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-    // Send cancellation email immediately — refund confirmation comes later via Stripe webhook
     const resend = new Resend(process.env.RESEND_API_KEY!);
     await resend.emails.send({
       from: process.env.OWNER_EMAIL_FROM!,
@@ -60,57 +45,39 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, order });
   }
 
-  const update: any = { status };
-  if (trackingNumber !== undefined) update.tracking_number = trackingNumber || null;
+  // Build update query
+  const fields: string[] = ["status = $1"];
+  const values: any[] = [status];
 
-  const { data: order, error } = await supabase
-    .from("orders")
-    .update(update)
-    .eq("id", orderId)
-    .select()
-    .single();
+  if (trackingNumber !== undefined) {
+    fields.push(`tracking_number = $${values.length + 1}`);
+    values.push(trackingNumber || null);
+  }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  values.push(orderId);
+  const { rows } = await pool.query(
+    `UPDATE orders SET ${fields.join(", ")} WHERE id = $${values.length} RETURNING *`,
+    values,
+  );
+  const order = rows[0];
+  if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
   const resend = new Resend(process.env.RESEND_API_KEY!);
 
   if (status === "processing") {
-    await resend.emails.send({
-      from: process.env.OWNER_EMAIL_FROM!,
-      to: order.email,
-      subject: `Your order ${order.order_number} is being prepared`,
-      html: orderProcessingEmail(order),
-    });
+    await resend.emails.send({ from: process.env.OWNER_EMAIL_FROM!, to: order.email, subject: `Your order ${order.order_number} is being prepared`, html: orderProcessingEmail(order) });
     console.log(`Processing email sent to ${order.email}`);
   }
-
   if (status === "shipped") {
-    await resend.emails.send({
-      from: process.env.OWNER_EMAIL_FROM!,
-      to: order.email,
-      subject: `Your order ${order.order_number} has shipped!`,
-      html: orderShippedEmail(order),
-    });
+    await resend.emails.send({ from: process.env.OWNER_EMAIL_FROM!, to: order.email, subject: `Your order ${order.order_number} has shipped!`, html: orderShippedEmail(order) });
     console.log(`Shipped email sent to ${order.email}`);
   }
-
   if (status === "delivered") {
-    await resend.emails.send({
-      from: process.env.OWNER_EMAIL_FROM!,
-      to: order.email,
-      subject: `Thank you for your order, ${order.shipping_name.split(" ")[0]}!`,
-      html: orderDeliveredEmail(order),
-    });
+    await resend.emails.send({ from: process.env.OWNER_EMAIL_FROM!, to: order.email, subject: `Thank you for your order, ${order.shipping_name.split(" ")[0]}!`, html: orderDeliveredEmail(order) });
     console.log(`Delivered email sent to ${order.email}`);
   }
-
   if (status === "refunded") {
-    await resend.emails.send({
-      from: process.env.OWNER_EMAIL_FROM!,
-      to: order.email,
-      subject: `Your refund for order ${order.order_number} is being processed`,
-      html: orderRefundedEmail(order),
-    });
+    await resend.emails.send({ from: process.env.OWNER_EMAIL_FROM!, to: order.email, subject: `Your refund for order ${order.order_number} is being processed`, html: orderRefundedEmail(order) });
     console.log(`Refunded email sent to ${order.email}`);
   }
 
